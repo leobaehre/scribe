@@ -2,12 +2,13 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { TableMap } from "@tiptap/pm/tables";
 
 /**
- * Page geometry in CSS px. US Letter proportions at the editor's 760px width,
+ * Page geometry in CSS px. A4 proportions (210 × 297 mm) at the editor's 760px width,
  * with 72px top/bottom margins (the .tiptap padding) and a gap between sheets.
  */
-export const PAGE = { width: 760, height: 983, margin: 72, gap: 32 };
+export const PAGE = { width: 760, height: 1075, margin: 72, gap: 32 };
 export const PERIOD = PAGE.height + PAGE.gap;
 
 /**
@@ -15,20 +16,31 @@ export const PERIOD = PAGE.height + PAGE.gap;
  * line of text (and every unsplittable block such as an image or table), works
  * out which ones would cross a page's bottom margin, and inserts an invisible
  * spacer before each one so it starts at the top of the next sheet. Long
- * paragraphs split between lines; tables and images move as a whole.
+ * paragraphs split between lines, tables split between rows (repeating a header
+ * row at the top of each new page), and images move as a whole.
  *
  * The spacers are decorations, so they never enter the document or the saved file.
+ *
+ * Table splitting (spacer rows, rowspan groups, repeated header) is adapted from
+ * tiptap-a4-pagination, Copyright (c) Phan Nhật Huy, MIT License:
+ * https://github.com/HuyPhan1232203/Text-editor-react/tree/main/packages/tiptap-a4-pagination
  */
+
+/** Where a spacer sits: between blocks, inside a paragraph (between lines), or between table rows. */
+type Kind = "block" | "inline" | "row";
+type RowInfo = { columns: number; header?: string };
 
 type Unit = {
   top: number; // relative to the editor root, without spacers
   bottom: number;
   breakPos: number; // where a spacer goes to push this unit to the next page
-  inline: boolean; // spacer inside a paragraph (between lines) vs. between blocks
+  kind: Kind;
+  row?: RowInfo;
+  extra: number; // room kept at the top of the new page (a repeated table header)
   measure: () => number | null; // current top of this unit, for the correction pass
 };
 
-type Break = { pos: number; inline: boolean; height: number; target: number; measure: () => number | null };
+type Break = { pos: number; kind: Kind; row?: RowInfo; height: number; target: number; measure: () => number | null };
 
 const key = new PluginKey<DecorationSet>("pagination");
 
@@ -68,6 +80,85 @@ function linesOf(el: HTMLElement): Line[] {
   return lines;
 }
 
+/** Static copy of a header row with its measured cell widths, so the columns line up. */
+function copyHeaderRow(row: HTMLElement): string {
+  const clone = row.cloneNode(true) as HTMLElement;
+  const cells = Array.from(row.children);
+  Array.from(clone.children).forEach((cell, i) => {
+    (cell as HTMLElement).style.width = `${cells[i].getBoundingClientRect().width}px`;
+    cell.classList.remove("selectedCell");
+  });
+  clone.querySelectorAll(".column-resize-handle").forEach((n) => n.remove());
+  return `<table><tbody>${clone.outerHTML}</tbody></table>`;
+}
+
+/**
+ * A table becomes one unit per group of rows that mustn't be separated (rows
+ * joined by a rowspan). The first group breaks before the whole table; later
+ * groups break between rows with a spacer row.
+ */
+function tableUnits(view: EditorView, table: PMNode, pos: number, base: number, rootTop: () => number): Unit[] {
+  const el = view.nodeDOM(pos);
+  if (!(el instanceof HTMLElement)) return [];
+  const { doc } = view.state;
+  const box = el.getBoundingClientRect();
+  const map = TableMap.get(table);
+  const groups: { pos: number; top: number; bottom: number }[] = [];
+  let firstGroupRows = 0;
+  let firstRow: HTMLElement | null = null;
+
+  let index = 0;
+  table.forEach((_row, offset) => {
+    const i = index++;
+    const rowPos = pos + 1 + offset;
+    const dom = view.nodeDOM(rowPos);
+    if (!(dom instanceof HTMLElement)) return;
+    const r = dom.getBoundingClientRect();
+    // A cell from the row above reaching into this one (rowspan) joins the two rows.
+    const joined = i > 0 && map.map
+      .slice(i * map.width, (i + 1) * map.width)
+      .some((cell, col) => cell === map.map[(i - 1) * map.width + col]);
+    if (joined && groups.length) groups[groups.length - 1].bottom = r.bottom - base;
+    else groups.push({ pos: rowPos, top: r.top - base, bottom: r.bottom - base });
+    if (groups.length === 1) { firstGroupRows++; firstRow ??= dom; }
+  });
+
+  const whole: Unit = {
+    top: box.top - base,
+    bottom: box.bottom - base,
+    breakPos: hoist(doc, pos),
+    kind: "block",
+    extra: 0,
+    measure: () => {
+      const cur = view.nodeDOM(pos);
+      return cur instanceof HTMLElement ? cur.getBoundingClientRect().top - rootTop() : null;
+    },
+  };
+  if (groups.length < 2) return [whole];
+
+  // Repeat the first row on each new page if it's a header row on its own.
+  const head = table.firstChild;
+  const isHeader = firstGroupRows === 1 && firstRow && head && head.childCount > 0
+    && Array.from({ length: head.childCount }, (_, i) => head.child(i)).every((c) => c.type.name === "tableHeader");
+  const header = isHeader ? { html: copyHeaderRow(firstRow!), height: firstRow!.getBoundingClientRect().height } : null;
+
+  groups[groups.length - 1].bottom = box.bottom - base;
+  return groups.map((g, i) => i === 0
+    ? { ...whole, bottom: g.bottom }
+    : {
+      top: g.top,
+      bottom: g.bottom,
+      breakPos: g.pos,
+      kind: "row" as const,
+      row: { columns: map.width, header: header?.html },
+      extra: header?.height ?? 0,
+      measure: () => {
+        const cur = view.nodeDOM(g.pos);
+        return cur instanceof HTMLElement ? cur.getBoundingClientRect().top - rootTop() : null;
+      },
+    });
+}
+
 function collectUnits(view: EditorView): Unit[] {
   const { doc } = view.state;
   const rootTop = () => view.dom.getBoundingClientRect().top;
@@ -78,8 +169,12 @@ function collectUnits(view: EditorView): Unit[] {
   const units: Unit[] = [];
 
   doc.descendants((node, pos) => {
+    if (node.type.name === "table") {
+      units.push(...tableUnits(view, node, pos, base, rootTop));
+      return false;
+    }
     // Blocks that can't be split across pages
-    if (node.type.name === "table" || (node.isBlock && node.isAtom)) {
+    if (node.isBlock && node.isAtom) {
       const el = view.nodeDOM(pos);
       if (el instanceof HTMLElement) {
         const r = el.getBoundingClientRect();
@@ -87,7 +182,8 @@ function collectUnits(view: EditorView): Unit[] {
           top: r.top - base,
           bottom: r.bottom - base,
           breakPos: hoist(doc, pos),
-          inline: false,
+          kind: "block",
+          extra: 0,
           measure: () => {
             const cur = view.nodeDOM(pos);
             return cur instanceof HTMLElement ? cur.getBoundingClientRect().top - rootTop() : null;
@@ -106,7 +202,7 @@ function collectUnits(view: EditorView): Unit[] {
       const top = line.top - base;
       const bottom = line.bottom - base;
       if (i === 0) {
-        units.push({ top, bottom, breakPos: hoist(doc, pos), inline: false, measure: caretTop(start) });
+        units.push({ top, bottom, breakPos: hoist(doc, pos), kind: "block", extra: 0, measure: caretTop(start) });
         return;
       }
       const hit = view.posAtCoords({ left: line.left + 1, top: (line.top + line.bottom) / 2 });
@@ -115,7 +211,7 @@ function collectUnits(view: EditorView): Unit[] {
         units[units.length - 1].bottom = bottom;
         return;
       }
-      units.push({ top, bottom, breakPos: hit.pos, inline: true, measure: caretTop(hit.pos) });
+      units.push({ top, bottom, breakPos: hit.pos, kind: "inline", extra: 0, measure: caretTop(hit.pos) });
     });
     return false;
   });
@@ -135,9 +231,10 @@ function paginate(units: Unit[]): { breaks: Break[]; pages: number } {
     if (bottom > limit(page) + 0.5 && !first) {
       let next = page + 1;
       while (next * PERIOD + PAGE.margin < top) next++; // after an oversized block
-      const target = next * PERIOD + PAGE.margin;
+      // A repeated table header takes the first lines of the new page.
+      const target = next * PERIOD + PAGE.margin + u.extra;
       const height = Math.max(0, target - top);
-      breaks.push({ pos: u.breakPos, inline: u.inline, height, target, measure: u.measure });
+      breaks.push({ pos: u.breakPos, kind: u.kind, row: u.row, height, target, measure: u.measure });
       shift += height;
       page = next;
       lastBottom = u.bottom + shift;
@@ -151,21 +248,48 @@ function paginate(units: Unit[]): { breaks: Break[]; pages: number } {
   return { breaks, pages };
 }
 
+function spacer(b: Break): HTMLElement {
+  if (b.kind === "row" && b.row) {
+    // Inside a table the spacer is a full-width row; a repeated header sits at its bottom.
+    const tr = document.createElement("tr");
+    tr.className = "page-break page-break-row";
+    tr.contentEditable = "false";
+    const td = document.createElement("td");
+    td.className = "page-break-cell";
+    td.colSpan = b.row.columns; // exact count: with table-layout: fixed, more would add phantom columns
+    td.style.height = `${b.height}px`;
+    if (b.row.header) {
+      const header = document.createElement("div");
+      header.className = "page-break-header";
+      header.innerHTML = b.row.header;
+      td.appendChild(header);
+    }
+    tr.appendChild(td);
+    return tr;
+  }
+  const el = document.createElement(b.kind === "inline" ? "span" : "div");
+  el.className = "page-break";
+  el.style.height = `${b.height}px`;
+  el.contentEditable = "false";
+  return el;
+}
+
+/** Short hash so widget keys change when a repeated header's content changes. */
+function hash(text: string): string {
+  let v = 0;
+  for (let i = 0; i < text.length; i++) v = (v * 31 + text.charCodeAt(i)) | 0;
+  return (v >>> 0).toString(36);
+}
+
 function decorations(view: EditorView, breaks: Break[]): DecorationSet {
   return DecorationSet.create(
     view.state.doc,
     breaks.map((b) =>
-      Decoration.widget(
-        b.pos,
-        () => {
-          const el = document.createElement(b.inline ? "span" : "div");
-          el.className = "page-break";
-          el.style.height = `${b.height}px`;
-          el.contentEditable = "false";
-          return el;
-        },
-        { side: -1, ignoreSelection: true, key: `pb:${b.pos}:${b.inline ? 1 : 0}:${b.height.toFixed(1)}` },
-      ),
+      Decoration.widget(b.pos, () => spacer(b), {
+        side: -1,
+        ignoreSelection: true,
+        key: `pb:${b.pos}:${b.kind}:${b.height.toFixed(1)}:${b.row ? `${b.row.columns}:${hash(b.row.header ?? "")}` : ""}`,
+      }),
     ),
   );
 }

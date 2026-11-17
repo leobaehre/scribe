@@ -9,7 +9,7 @@ Built with Tauri 2, React and Tiptap.
 ## Features
 
 - **Word files as the native format.** Saving writes a normal `.docx` that opens in Word, Pages and Google Docs. Scribe also tucks an exact copy of the document inside the file, so reopening it in Scribe loses nothing.
-- **Real pages.** Text flows onto US Letter–sized pages with margins and page numbers, splitting paragraphs between lines like a word processor.
+- **Real pages.** Text flows onto A4 pages with margins and page numbers, splitting paragraphs between lines and tables between rows (repeating the header row) like a word processor.
 - **Google Docs–style toolbar.** Styles, fonts, font size, bold/italic/underline/strikethrough, text and highlight colors, links, images, alignment, lists, indentation and clear formatting.
 - **Native macOS menu bar** with the usual shortcuts (⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘B, ⌘I, ⌘U, ⌘K, …).
 
@@ -64,6 +64,10 @@ Checks:
 | `src/lib/docx.ts` | Imports `.docx` from other apps (mammoth) |
 | `src/lib/files.ts` | Open/save dialogs |
 | `src-tauri/src/lib.rs` | macOS menu bar |
+
+## Credits
+
+Table splitting across pages is adapted from [tiptap-a4-pagination](https://github.com/HuyPhan1232203/Text-editor-react/tree/main/packages/tiptap-a4-pagination) by Phan Nhật Huy (MIT).
 
 ## License
 

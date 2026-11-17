@@ -122,6 +122,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-ui); f
 .page-content { position: relative; }
 .page-break { display: block; margin: 0 !important; padding: 0; user-select: none; pointer-events: none; }
 .page-break + * { margin-top: 0 !important; }
+tr.page-break { display: table-row; }
+.tiptap td.page-break-cell { position: relative; padding: 0; border: 0; background: transparent; }
+.page-break-header { position: absolute; left: 0; right: 0; bottom: 0; }
+.page-break-header table { margin: 0; }
 .page .tiptap {
   outline: none; padding: var(--page-margin) 80px; min-height: var(--doc-h);
   font-family: var(--font-doc); font-size: 17px; line-height: 1.65;

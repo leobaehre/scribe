@@ -19,7 +19,7 @@ xattr -dr com.apple.quarantine /Applications/Scribe.app
 
 ## What's in it
 
-- **Real pages.** Text flows across US Letter pages with margins and page numbers.
+- **Real pages.** Text flows across A4 pages with margins and page numbers.
 - **A Google Docs–style toolbar.** Styles, fonts, font size, bold/italic/underline/strikethrough, text and highlight colors, links, images, alignment, lists, indents and clear formatting.
 - **Word files as the native format.** ⌘S saves a normal `.docx` that also opens in Word, Pages and Google Docs. Reopening it in Scribe brings everything back exactly.
 - **A Mac menu bar** with the usual shortcuts: ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘B, ⌘I, ⌘U, ⌘K, and more.
@@ -36,7 +36,7 @@ xattr -dr com.apple.quarantine /Applications/Scribe.app
 ## Known limitations
 
 - Word files made in other apps come in without their colors, fonts and font sizes for now. Headings, lists, bold/italic, links, tables and images do come through. Saving over such a file asks first, since things like headers, footers and comments would be lost.
-- Tables and images taller than a page don't split across pages.
+- Images, and single table rows, taller than a page don't split across pages. (Tables do split between rows, and repeat their header row on each page.)
 - A heading can end up alone at the bottom of a page.
 - In dark mode, black or dark-gray text colors are hard to read on the dark page.
 - Mac only for now.

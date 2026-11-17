@@ -42,9 +42,9 @@ const FONT = "Charter"; // matches --font-doc; Word substitutes a similar serif 
 const BODY_HALF_PT = 26; // 13pt, the editor's 17px body text
 const LINE = 396; // 1.65 line height, in 240ths of a line
 const AFTER = 200; // ~0.8em paragraph spacing, in twips
-const CONTENT_WIDTH_PX = 624; // 6.5in at 96dpi: Letter with 1in margins
+const CONTENT_WIDTH_PX = 602; // 6.27in at 96dpi: A4 with 1in margins
 const MUTED = "7A7A76";
-const TEXT_WIDTH_TWIPS = 9360; // 6.5in
+const TEXT_WIDTH_TWIPS = 9026; // A4 width (11906) minus 1in margins
 
 type Mark = NonNullable<JSONContent["marks"]>[number];
 type Ctx = { listLevel: number; quote: boolean };
@@ -394,7 +394,7 @@ export async function toDocx(doc: JSONContent, title = "Document"): Promise<Uint
     sections: [{
       properties: {
         page: {
-          size: { width: 12240, height: 15840 }, // US Letter
+          size: { width: 11906, height: 16838 }, // A4
           margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
         },
       },
