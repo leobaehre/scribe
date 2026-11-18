@@ -31,7 +31,7 @@ Built with Tauri 2, React and Tiptap.
 | You open… | What happens |
 |---|---|
 | A `.docx` saved by Scribe | Opens exactly as you left it. |
-| A `.docx` from Word or another app (or edited there since) | Imported: headings, lists, bold/italic, links, tables and images come through. Colors, fonts and sizes don't yet. The first Save asks whether to replace the original, because anything Scribe can't show (headers, footers, comments) would be lost. |
+| A `.docx` from Word or another app (or edited there since) | Imported with its look: fonts, sizes, colors, highlights, alignment, headings, lists, links, images and tables (including merged cells). Headers, footers, comments, footnotes, equations and charts aren't shown, so the first Save asks whether to replace the original. |
 | An older `.scribe` file | Opens and keeps saving as `.scribe`. |
 
 ## Develop
@@ -51,6 +51,7 @@ Checks:
 
     npm run build                          # type-check and bundle the frontend
     npm run test:docx-export               # .docx save → Word view → reopen round trip
+    npm run test:docx-import               # importing Word files from other apps
     npm run test:docx -- some-file.docx    # how a Word file imports
 
 ### Layout
@@ -61,7 +62,8 @@ Checks:
 | `src/Toolbar.tsx` | Formatting toolbar |
 | `src/lib/pagination.ts` | Splits the document into pages |
 | `src/lib/docxFormat.ts` | Writes `.docx` (and reads back Scribe's own) |
-| `src/lib/docx.ts` | Imports `.docx` from other apps (mammoth) |
+| `src/lib/docxImport.ts` | Imports `.docx` from other apps |
+| `src/lib/docx.ts` | Fallback importer (mammoth) for unusual files |
 | `src/lib/files.ts` | Open/save dialogs |
 | `src-tauri/src/lib.rs` | macOS menu bar |
 

@@ -3,6 +3,7 @@ import { readFile, readTextFile, writeFile, writeTextFile } from "@tauri-apps/pl
 import type { JSONContent } from "@tiptap/react";
 import { docxToHtml } from "./docx";
 import { readScribeDocx, toDocx } from "./docxFormat";
+import { importDocx } from "./docxImport";
 
 /**
  * `foreign`: a .docx made (or last edited) by another app. Scribe imports what
@@ -33,9 +34,17 @@ export async function openDocument(): Promise<OpenedDoc | null> {
     const bytes = await readFile(path);
     const own = await readScribeDocx(bytes);
     if (own) return { kind: "json", path, name, json: own, foreign: false };
-    const { html, warnings } = await docxToHtml(bytes);
-    if (warnings.length) console.warn("docx import warnings:", warnings);
-    return { kind: "html", path, name, html, foreign: true };
+    try {
+      const { json, warnings } = await importDocx(bytes);
+      if (warnings.length) console.warn("docx import warnings:", warnings);
+      return { kind: "json", path, name, json, foreign: true };
+    } catch (err) {
+      // Unusual files: fall back to the simpler mammoth conversion.
+      console.warn("docx import failed, using fallback:", err);
+      const { html, warnings } = await docxToHtml(bytes);
+      if (warnings.length) console.warn("docx import warnings:", warnings);
+      return { kind: "html", path, name, html, foreign: true };
+    }
   }
   const parsed = JSON.parse(await readTextFile(path));
   return { kind: "json", path, name, json: parsed.content, foreign: false };

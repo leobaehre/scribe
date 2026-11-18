@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test:docx": "node scripts/test-docx.mjs",
-    "test:docx-export": "node scripts/test-docx-export.mjs"
+    "test:docx-export": "node scripts/test-docx-export.mjs",
+    "test:docx-import": "node scripts/test-docx-import.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

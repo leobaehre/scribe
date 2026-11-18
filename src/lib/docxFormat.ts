@@ -104,7 +104,6 @@ function runOptions(marks: Mark[] = [], ctx: Ctx): IRunOptions {
       }
     }
   }
-  if (ctx.quote && !o.color) o.color = MUTED;
   return o as IRunOptions;
 }
 
@@ -219,7 +218,7 @@ async function blocks(nodes: JSONContent[] = [], ctx: Ctx, state: State): Promis
 async function block(n: JSONContent, ctx: Ctx, state: State): Promise<Block[]> {
   const align = ALIGN[(n.attrs?.textAlign as string) ?? ""];
   const quoteStyle: Partial<IParagraphOptions> = ctx.quote
-    ? { indent: { left: 360 }, border: { left: { style: BorderStyle.SINGLE, size: 18, color: "E4E2DD", space: 12 } } }
+    ? { style: "Quote", indent: { left: 360 }, border: { left: { style: BorderStyle.SINGLE, size: 18, color: "E4E2DD", space: 12 } } }
     : {};
 
   switch (n.type) {
@@ -367,6 +366,9 @@ export async function toDocx(doc: JSONContent, title = "Document"): Promise<Uint
         id: "Normal", name: "Normal", quickFormat: true,
         run: { font: FONT, size: BODY_HALF_PT, color: "1F1F1F" },
         paragraph: { spacing: { line: LINE, after: AFTER } },
+      }, {
+        id: "Quote", name: "Quote", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { color: MUTED },
       }],
       characterStyles: [{
         id: "Hyperlink", name: "Hyperlink", basedOn: "DefaultParagraphFont",

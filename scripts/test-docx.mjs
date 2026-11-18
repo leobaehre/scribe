@@ -1,21 +1,19 @@
-// Verifies that a .docx converts to HTML and that TipTap's schema accepts it.
+// Shows how a .docx imports into Scribe: node/mark types and warnings.
+// Usage: npm run test:docx -- file.docx
 import { readFileSync } from "node:fs";
-import mammoth from "mammoth";
-import { generateJSON } from "@tiptap/html";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import TextAlign from "@tiptap/extension-text-align";
-import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { Window } from "happy-dom";
+import { importDocx } from "../src/lib/docxImport.ts";
+
+globalThis.DOMParser = new Window().DOMParser;
 
 const file = process.argv[2];
 if (!file) { console.error("usage: npm run test:docx -- file.docx"); process.exit(1); }
-const { value: html, messages } = await mammoth.convertToHtml({ buffer: readFileSync(file) }, {
-  styleMap: ["p[style-name='Title'] => h1:fresh", "p[style-name='Subtitle'] => h2:fresh",
-    "p[style-name='Quote'] => blockquote > p:fresh", "u => u", "strike => s"],
-});
-const json = generateJSON(html, [StarterKit, Image.configure({ allowBase64: true }),
-  TextAlign, Table, TableRow, TableHeader, TableCell]);
+const { json, warnings } = await importDocx(new Uint8Array(readFileSync(file)));
 const types = new Set();
-(function walk(n) { types.add(n.type); (n.content || []).forEach(walk); (n.marks || []).forEach((m) => types.add("mark:" + m.type)); })(json);
-console.log("warnings:", messages.length);
+(function walk(n) {
+  types.add(n.type);
+  (n.content || []).forEach(walk);
+  (n.marks || []).forEach((m) => types.add("mark:" + m.type + (m.attrs ? `(${Object.keys(m.attrs).join(",")})` : "")));
+})(json);
+console.log("warnings:", warnings.length ? warnings : "none");
 console.log("node/mark types:", [...types].sort().join(", "));

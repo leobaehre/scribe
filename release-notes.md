@@ -35,7 +35,7 @@ xattr -dr com.apple.quarantine /Applications/Scribe.app
 
 ## Known limitations
 
-- Word files made in other apps come in without their colors, fonts and font sizes for now. Headings, lists, bold/italic, links, tables and images do come through. Saving over such a file asks first, since things like headers, footers and comments would be lost.
+- Word files made in other apps keep their fonts, sizes, colors, alignment, lists, tables and images, but headers, footers, comments, footnotes, equations and charts aren't shown yet. Saving over such a file asks first, since those would be lost.
 - Images, and single table rows, taller than a page don't split across pages. (Tables do split between rows, and repeat their header row on each page.)
 - A heading can end up alone at the bottom of a page.
 - In dark mode, black or dark-gray text colors are hard to read on the dark page.
