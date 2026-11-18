@@ -12,6 +12,7 @@ import { listen } from "@tauri-apps/api/event";
 import Toolbar from "./Toolbar";
 import { confirmReplaceForeign, openDocument, saveDocument, showError } from "./lib/files";
 import { Pagination, PAGE, PERIOD } from "./lib/pagination";
+import { COMMIT, DEBUG, VERSION } from "./lib/version";
 import { IS_MAC, MOD } from "./lib/platform";
 
 const UNTITLED = "Untitled";
@@ -196,7 +197,10 @@ export default function App() {
         </div>
       </main>
       <footer className="statusbar">
-        {pages} {pages === 1 ? "page" : "pages"} · {words} {words === 1 ? "word" : "words"}
+        <span>{pages} {pages === 1 ? "page" : "pages"} · {words} {words === 1 ? "word" : "words"}</span>
+        <span className="version" title={`Scribe ${VERSION}, build ${COMMIT}${DEBUG ? " (debug)" : ""}`}>
+          {DEBUG && <span className="debug-badge">debug</span>}v{VERSION}
+        </span>
       </footer>
     </div>
   );

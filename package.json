@@ -1,7 +1,7 @@
 {
   "name": "scribe",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A clean, minimal desktop document editor that reads and writes Word (.docx) files.",
   "license": "MIT",
   "repository": {

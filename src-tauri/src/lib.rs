@@ -2,7 +2,7 @@ use tauri::Emitter;
 
 #[cfg(target_os = "macos")]
 fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
-    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+    use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 
     // Custom items carry an id that is forwarded to the frontend as a "menu" event.
     let item = |id: &str, label: &str, accel: &str| {
@@ -10,12 +10,20 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::
     };
     let sep = || PredefinedMenuItem::separator(app);
 
+    // About Scribe: "Version 0.1.0 (83fc47d)", plus "· debug" in debug builds.
+    let build = env!("SCRIBE_COMMIT").to_string() + if cfg!(debug_assertions) { " · debug" } else { "" };
+    let about = AboutMetadata {
+        short_version: Some(app.package_info().version.to_string()),
+        version: Some(build),
+        ..Default::default()
+    };
+
     let app_menu = Submenu::with_items(
         app,
         "Scribe",
         true,
         &[
-            &PredefinedMenuItem::about(app, Some("About Scribe"), None)?,
+            &PredefinedMenuItem::about(app, Some("About Scribe"), Some(about))?,
             &sep()?,
             &PredefinedMenuItem::services(app, None)?,
             &sep()?,
